@@ -1,60 +1,62 @@
 (function ($) {
-  "use strict";
 
-  function renderLoading() {
-    $('#ult-results').html('<p class="ult-muted">Cargando...</p>');
-  }
+    let debounceTimer;
 
-  function renderError(msg) {
-    $('#ult-results').html(
-      '<p class="ult-muted">' + (msg || 'Error cargando datos') + '</p>'
-    );
-  }
+    function loadUsers(page = 1) {
+        const data = {
+            action: 'ult_get_users',
+            nonce: ULT_AJAX.nonce,
+            name: $('input[name="name"]').val() || '',
+            surnames: $('input[name="surnames"]').val() || '',
+            email: $('input[name="email"]').val() || '',
+            page: page
+        };
 
-  function loadUsers(page) {
-    var $form = $('#ult-search-form');
-    var data = {
-      action: 'ult_get_users',
-      nonce: (window.ULT_AJAX && ULT_AJAX.nonce) ? ULT_AJAX.nonce : '',
-      page: page || 1,
-      name: $form.find('[name="name"]').val() || '',
-      surnames: $form.find('[name="surnames"]').val() || '',
-      email: $form.find('[name="email"]').val() || ''
-    };
+        $('#ult-results').html('<p class="ult-muted">Cargando...</p>');
 
-    renderLoading();
-
-    $.post(ULT_AJAX.ajax_url, data)
-      .done(function (res) {
-        if (res && res.success && res.data && typeof res.data.html === 'string') {
-          $('#ult-results').html(res.data.html);
-        } else {
-          renderError();
-        }
-      })
-      .fail(function () {
-        renderError();
-      });
-  }
-
-  // Initial load
-  $(function () {
-    if ($('#ult-app').length) {
-      loadUsers(1);
+        $.post(ULT_AJAX.ajax_url, data)
+            .done(function (res) {
+                if (res.success && res.data && res.data.html) {
+                    $('#ult-results').html(res.data.html);
+                } else {
+                    $('#ult-results').html('<p class="ult-muted">Error inesperado.</p>');
+                }
+            })
+            .fail(function () {
+                $('#ult-results').html('<p class="ult-muted">La petición AJAX ha fallado.</p>');
+            });
     }
-  });
 
-  // Search submit
-  $(document).on('submit', '#ult-search-form', function (e) {
-    e.preventDefault();
-    loadUsers(1);
-  });
+    $(document).ready(function () {
 
-  // Pagination buttons
-  $(document).on('click', '.ult-page-btn', function () {
-    var p = parseInt($(this).data('page'), 10);
-    if (!isNaN(p)) {
-      loadUsers(p);
-    }
-  });
+        // carga inicial
+        loadUsers();
+
+        // nasconde il bottone Buscar (non serve più)
+        $('#ult-search-form button').hide();
+
+        // ricerca automatica mentre si scrive (debounce 300ms)
+        $('#ult-search-form input').on('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function () {
+                loadUsers(1);
+            }, 300);
+        });
+
+        // invio form con Enter
+        $('#ult-search-form').on('submit', function (e) {
+            e.preventDefault();
+            loadUsers(1);
+        });
+
+        // paginazione AJAX
+        $('#ult-results').on('click', '.ult-page-btn', function (e) {
+            e.preventDefault();
+            const page = $(this).data('page');
+            if (page) {
+                loadUsers(page);
+            }
+        });
+    });
+
 })(jQuery);
