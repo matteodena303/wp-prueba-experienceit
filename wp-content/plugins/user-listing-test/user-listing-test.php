@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: User Listing Test
- * Description: Listado paginado y buscable de usuarios con AJAX simulando API POST.
+ * Description: Paginated and searchable user list with AJAX, simulating a POST API call.
  * Version: 1.2.0
  */
 
@@ -13,25 +13,24 @@ if (!defined('ABSPATH')) {
 /**
  * Class ULT_User_Listing_Test
  *
- * Este plugin registra el shortcode [ult_user_list] para mostrar un listado de usuarios
- * con búsqueda y paginación mediante AJAX. Simula la respuesta de una API externa y
- * aplica filtros en el servidor antes de devolver el HTML de la tabla, junto con
- * información de paginación.
+ * Registers the [ult_user_list] shortcode to display a list of users with search and pagination via AJAX.
+ * It simulates the response of an external API and applies filters on the server side
+ * before returning the HTML table with pagination data.
  */
 class ULT_User_Listing_Test
 {
     /**
-     * Número de elementos a mostrar por página.
+     * Number of items to display per page.
      */
     const PER_PAGE = 5;
 
     /**
-     * Acción del nonce utilizada para validar las peticiones AJAX.
+     * Nonce action used to validate AJAX requests.
      */
     const NONCE_ACTION = 'ult_nonce_action';
 
     /**
-     * Constructor. Registra hooks y shortcodes.
+     * Constructor. Registers hooks and shortcodes.
      */
     public function __construct()
     {
@@ -42,7 +41,7 @@ class ULT_User_Listing_Test
     }
 
     /**
-     * Enqueue de scripts y estilos únicamente cuando el shortcode está presente.
+     * Enqueues scripts and styles only when the shortcode is present.
      */
     public function enqueue_assets()
     {
@@ -50,7 +49,7 @@ class ULT_User_Listing_Test
             return;
         }
 
-        // Encola el script de la parte pública.
+        // Enqueue the public-facing script.
         wp_enqueue_script(
             'ult-user-listing',
             plugin_dir_url(__FILE__) . 'assets/user-listing.js',
@@ -59,14 +58,14 @@ class ULT_User_Listing_Test
             true
         );
 
-        // Pasa variables PHP al script JS.
+        // Pass PHP variables to the JS script.
         wp_localize_script('ult-user-listing', 'ULT_AJAX', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce(self::NONCE_ACTION),
             'per_page' => self::PER_PAGE,
         ]);
 
-        // CSS en línea para el frontend del plugin.
+        // Inline CSS for the plugin frontend.
         $css = "
         .ult-wrap{max-width:900px;margin:20px 0;}
         .ult-form{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
@@ -85,7 +84,7 @@ class ULT_User_Listing_Test
     }
 
     /**
-     * Comprueba si el contenido actual tiene el shortcode especificado.
+     * Checks whether the current post content contains the specified shortcode.
      *
      * @param string $shortcode
      * @return bool
@@ -100,7 +99,7 @@ class ULT_User_Listing_Test
     }
 
     /**
-     * Renderiza el HTML que contendrá el listado y el formulario de búsqueda.
+     * Renders the HTML containing the list and search form.
      *
      * @return string
      */
@@ -124,7 +123,7 @@ class ULT_User_Listing_Test
     }
 
     /**
-     * Maneja la petición AJAX devolviendo el HTML y datos de paginación.
+     * Handles the AJAX request and returns the HTML and pagination data.
      */
     public function ajax_get_users()
     {
@@ -160,7 +159,7 @@ class ULT_User_Listing_Test
     }
 
     /**
-     * Simula la respuesta de una API POST. Devuelve 50 usuarios de ejemplo.
+     * Simulates the response of a POST API. Returns 50 sample users.
      *
      * @param array $filters
      * @return array
@@ -182,7 +181,7 @@ class ULT_User_Listing_Test
     }
 
     /**
-     * Aplica los filtros (nombre, apellidos y email) a la lista de usuarios.
+     * Applies filters (name, surnames, and email) to the user list.
      *
      * @param array $users
      * @param array $filters
@@ -205,7 +204,7 @@ class ULT_User_Listing_Test
     }
 
     /**
-     * Genera el HTML de la tabla y paginación.
+     * Generates the HTML for the table and pagination.
      *
      * @param array $users
      * @param int $total

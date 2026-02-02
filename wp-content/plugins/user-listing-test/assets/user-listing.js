@@ -1,8 +1,20 @@
+/*
+ * This script handles dynamic user loading via AJAX.
+ * It supports live search with debounce and AJAX pagination.
+ * The search button is hidden because filtering happens automatically.
+ */
+
 (function ($) {
 
+    // Timer used to debounce live search input
     let debounceTimer;
 
+    /**
+     * Load users from the backend using AJAX
+     * @param {number} page Page number to load (default: 1)
+     */
     function loadUsers(page = 1) {
+
         const data = {
             action: 'ult_get_users',
             nonce: ULT_AJAX.nonce,
@@ -12,30 +24,31 @@
             page: page
         };
 
-        $('#ult-results').html('<p class="ult-muted">Cargando...</p>');
+        // Show loading message
+        $('#ult-results').html('<p class="ult-muted">Loading...</p>');
 
         $.post(ULT_AJAX.ajax_url, data)
-            .done(function (res) {
-                if (res.success && res.data && res.data.html) {
-                    $('#ult-results').html(res.data.html);
+            .done(function (response) {
+                if (response.success && response.data && response.data.html) {
+                    $('#ult-results').html(response.data.html);
                 } else {
-                    $('#ult-results').html('<p class="ult-muted">Error inesperado.</p>');
+                    $('#ult-results').html('<p class="ult-muted">Unexpected error.</p>');
                 }
             })
             .fail(function () {
-                $('#ult-results').html('<p class="ult-muted">La petición AJAX ha fallado.</p>');
+                $('#ult-results').html('<p class="ult-muted">AJAX request failed.</p>');
             });
     }
 
     $(document).ready(function () {
 
-        // carga inicial
+        // Initial load
         loadUsers();
 
-        // nasconde il bottone Buscar (non serve più)
+        // Hide search button (not needed anymore)
         $('#ult-search-form button').hide();
 
-        // ricerca automatica mentre si scrive (debounce 300ms)
+        // Live search with debounce
         $('#ult-search-form input').on('input', function () {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(function () {
@@ -43,13 +56,13 @@
             }, 300);
         });
 
-        // invio form con Enter
+        // Allow submit via Enter key
         $('#ult-search-form').on('submit', function (e) {
             e.preventDefault();
             loadUsers(1);
         });
 
-        // paginazione AJAX
+        // AJAX pagination (event delegation)
         $('#ult-results').on('click', '.ult-page-btn', function (e) {
             e.preventDefault();
             const page = $(this).data('page');
@@ -57,6 +70,7 @@
                 loadUsers(page);
             }
         });
+
     });
 
 })(jQuery);
