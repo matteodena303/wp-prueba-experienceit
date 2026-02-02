@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Plugin Name: User Listing Test
  * Description: Listado paginado y buscable de usuarios con AJAX simulando API POST.
@@ -7,19 +8,24 @@
 
 if (!defined('ABSPATH')) exit;
 
-class ULT_User_Listing_Test {
+class ULT_User_Listing_Test
+{
     const PER_PAGE = 5;
     const NONCE_ACTION = 'ult_nonce_action';
 
-    public function __construct() {
+    public function __construct()
+    {
         add_shortcode('ult_user_list', [$this, 'render_shortcode']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
 
         add_action('wp_ajax_ult_get_users', [$this, 'ajax_get_users']);
         add_action('wp_ajax_nopriv_ult_get_users', [$this, 'ajax_get_users']);
+
+        add_action('rest_api_init', [$this, 'register_rest_routes']);
     }
 
-    public function enqueue_assets() {
+    public function enqueue_assets()
+    {
         if (!$this->current_page_has_shortcode('ult_user_list')) return;
 
         wp_enqueue_script(
@@ -52,13 +58,15 @@ class ULT_User_Listing_Test {
         wp_add_inline_style('ult-inline-style', $css);
     }
 
-    private function current_page_has_shortcode($shortcode) {
+    private function current_page_has_shortcode($shortcode)
+    {
         global $post;
         if (!$post) return false;
         return has_shortcode($post->post_content, $shortcode);
     }
 
-    public function render_shortcode() {
+    public function render_shortcode()
+    {
         ob_start(); ?>
         <div class="ult-wrap" id="ult-app">
             <form class="ult-form" id="ult-search-form">
@@ -72,11 +80,12 @@ class ULT_User_Listing_Test {
                 <p class="ult-muted">Cargando...</p>
             </div>
         </div>
-        <?php
+    <?php
         return ob_get_clean();
     }
 
-    public function ajax_get_users() {
+    public function ajax_get_users()
+    {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
 
         $page = isset($_POST['page']) ? max(1, intval($_POST['page'])) : 1;
@@ -87,7 +96,6 @@ class ULT_User_Listing_Test {
             'email' => isset($_POST['email']) ? sanitize_email($_POST['email']) : '',
         ];
 
-        // Simulación de llamada POST a un API externo (no disponible)
         $api_response = $this->simulate_api_post($filters);
 
         $users = $api_response['usuarios'];
@@ -111,9 +119,31 @@ class ULT_User_Listing_Test {
         ]);
     }
 
-    private function simulate_api_post($filters) {
-        // Estructura pedida: id, email, name, surname1, surname2
-        // Genero 50 usuarios para asegurar paginación.
+    private function simulate_api_post($filters)
+    {
+        // Simulamos una llamada POST a un API (no disponible en el enunciado).
+        // Para que sea verificable dentro del proyecto, exponemos un endpoint REST interno
+        // y hacemos un wp_remote_post contra él (mismo flujo que sería contra un API externo).
+
+        $endpoint = rest_url('ult/v1/users');
+        $response = wp_remote_post($endpoint, [
+            'headers' => [
+                'Content-Type' => 'application/json; charset=utf-8',
+            ],
+            'body' => wp_json_encode($filters),
+            'timeout' => 10,
+        ]);
+
+        if (!is_wp_error($response)) {
+            $code = wp_remote_retrieve_response_code($response);
+            $body = wp_remote_retrieve_body($response);
+            $json = json_decode($body, true);
+            if ($code >= 200 && $code < 300 && is_array($json) && isset($json['usuarios'])) {
+                return $json;
+            }
+        }
+
+        // Fallback: generamos datos localmente si algo falla.
         $usuarios = [];
         for ($i = 1; $i <= 50; $i++) {
             $usuarios[] = [
@@ -122,19 +152,21 @@ class ULT_User_Listing_Test {
                 'name' => "Nombre{$i}",
                 'surname1' => "Apellido{$i}A",
                 'surname2' => "Apellido{$i}B",
-                // Campo extra para mostrar "nombre de usuario"
+                // Campo extra para mostrar "nombre de usuario".
                 'username' => "user{$i}",
             ];
         }
+
         return ['usuarios' => $usuarios];
     }
 
-    private function apply_filters($users, $filters) {
+    private function apply_filters($users, $filters)
+    {
         $name = mb_strtolower(trim($filters['name']));
         $surnames = mb_strtolower(trim($filters['surnames']));
         $email = mb_strtolower(trim($filters['email']));
 
-        return array_values(array_filter($users, function($u) use ($name, $surnames, $email) {
+        return array_values(array_filter($users, function ($u) use ($name, $surnames, $email) {
             $haystack_name = mb_strtolower($u['name']);
             $haystack_surnames = mb_strtolower(trim($u['surname1'] . ' ' . $u['surname2']));
             $haystack_email = mb_strtolower($u['email']);
@@ -147,7 +179,8 @@ class ULT_User_Listing_Test {
         }));
     }
 
-    private function render_table_html($users, $total, $page, $total_pages) {
+    private function render_table_html($users, $total, $page, $total_pages)
+    {
         ob_start(); ?>
         <div class="ult-meta ult-muted">
             Total resultados: <strong><?php echo esc_html($total); ?></strong>
@@ -165,7 +198,9 @@ class ULT_User_Listing_Test {
             </thead>
             <tbody>
                 <?php if (empty($users)): ?>
-                    <tr><td colspan="5" class="ult-muted">Sin resultados</td></tr>
+                    <tr>
+                        <td colspan="5" class="ult-muted">Sin resultados</td>
+                    </tr>
                 <?php else: ?>
                     <?php foreach ($users as $u): ?>
                         <tr>
@@ -189,8 +224,25 @@ class ULT_User_Listing_Test {
             <button type="button" class="ult-page-btn" data-page="<?php echo esc_attr(min($total_pages, $page + 1)); ?>" <?php disabled($page === $total_pages); ?>>Siguiente ›</button>
             <button type="button" class="ult-page-btn" data-page="<?php echo esc_attr($total_pages); ?>" <?php disabled($page === $total_pages); ?>>Última »</button>
         </div>
-        <?php
+<?php
         return ob_get_clean();
+    }
+
+    // ✅ METODI REST DENTRO LA CLASSE
+    public function register_rest_routes()
+    {
+        register_rest_route('ult/v1', '/users', [
+            'methods'  => 'POST',
+            'callback' => [$this, 'rest_get_users'],
+            'permission_callback' => '__return_true',
+        ]);
+    }
+
+    public function rest_get_users(\WP_REST_Request $request)
+    {
+        $filters = $request->get_json_params() ?: [];
+        $api_response = $this->simulate_api_post($filters);
+        return new \WP_REST_Response($api_response, 200);
     }
 }
 
